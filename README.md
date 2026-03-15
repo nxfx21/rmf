@@ -37,5 +37,13 @@ npm install
 npm run dev
 ```
 
+### Deployment to GitHub Pages
+This repository is configured with a GitHub Action to automatically deploy the web app.
+1.  **Push your changes** to the `main` branch.
+2.  Go to your repository **Settings** on GitHub.
+3.  Navigate to **Pages** in the left sidebar.
+4.  Under **Build and deployment > Source**, select **GitHub Actions**.
+5. Your site will be live at `https://nxfx21.github.io/rmf/`!
+
 ## Development
 This project is currently in the definition phase. Contributions to the specification are welcome!
