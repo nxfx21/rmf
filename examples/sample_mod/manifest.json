@@ -1,0 +1,12 @@
+{
+  "rmf_version": "1.0.0",
+  "id": "com.nexus.example_mod",
+  "name": "Example RMF Mod",
+  "version": "1.0.0",
+  "author": "Antigravity",
+  "description": "A sample mod demonstrating the RobloxModFormat (RMF).",
+  "tags": ["example", "rmf", "template"],
+  "links": {
+    "documentation": "https://github.com/nxfx21/RobloxModFormat"
+  }
+}

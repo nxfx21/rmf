@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RMF Validator & Packager</title>
+  </head>
+  <body>
+    <div id="app">
+      <h1>RobloxModFormat</h1>
+      <p class="subtitle">Universal mod format validator and packager</p>
+      
+      <div class="rmf-card">
+        <div id="drop-zone" class="drop-zone">
+          <p>Drag & Drop a Folder (or .rmf zip) here to Validate</p>
+          <small>Or click to select files</small>
+        </div>
+        
+        <div id="results-container" class="hidden">
+          <div class="results" id="results-log"></div>
+          <button id="package-btn" class="hidden">Download as .rmf</button>
+          <button id="reset-btn">Clear</button>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
