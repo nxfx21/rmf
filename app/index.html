@@ -1,80 +1,94 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>RMF Validator & Packager</title>
-  </head>
-  <body>
-    <div id="app">
-      <h1>RobloxModFormat</h1>
-      <p class="subtitle">Universal mod format validator and packager</p>
-      
-      <div class="tabs">
-        <button id="tab-validator" class="tab-btn active">Validator</button>
-        <button id="tab-builder" class="tab-btn">Builder</button>
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RMF web gui</title>
+</head>
+
+<body>
+  <div id="app">
+    <h1>RobloxModFormat</h1>
+    <p class="subtitle">Universal mod format validator and packager</p>
+
+    <div class="tabs">
+      <button id="tab-validator" class="tab-btn active">Validator</button>
+      <button id="tab-builder" class="tab-btn">Builder</button>
+    </div>
+
+    <div class="rmf-card" id="view-validator">
+      <div id="drop-zone" class="drop-zone">
+        <p>Drag & Drop a Folder (or .rmf zip) here to Validate</p>
+        <small>Or click to select files</small>
       </div>
 
-      <div class="rmf-card" id="view-validator">
-        <div id="drop-zone" class="drop-zone">
-          <p>Drag & Drop a Folder (or .rmf zip) here to Validate</p>
-          <small>Or click to select files</small>
-        </div>
-        
-        <div id="results-container" class="hidden">
-          <div class="results" id="results-log"></div>
-          <button id="package-btn" class="hidden">Download as .rmf</button>
-          <button id="reset-btn">Clear</button>
-        </div>
-      </div>
-
-      <div class="rmf-card hidden" id="view-builder">
-        <form id="builder-form" onsubmit="event.preventDefault();">
-          <div class="form-row">
-            <div class="form-group">
-              <label for="b-id">Mod ID (e.g., com.author.modname)</label>
-              <input type="text" id="b-id" required placeholder="com.example.mod">
-            </div>
-            <div class="form-group">
-              <label for="b-name">Mod Name</label>
-              <input type="text" id="b-name" required placeholder="My Awesome Mod">
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label for="b-version">Version</label>
-              <input type="text" id="b-version" required placeholder="1.0.0">
-            </div>
-            <div class="form-group">
-              <label for="b-author">Author</label>
-              <input type="text" id="b-author" required placeholder="Your Name">
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="b-desc">Description (Optional)</label>
-            <textarea id="b-desc" rows="3" placeholder="Briefly describe your mod..."></textarea>
-          </div>
-          
-          <div class="file-upload-grid">
-            <div class="file-upload-group">
-              <label>Icon (.svg)</label>
-              <input type="file" id="b-icon" accept=".svg">
-            </div>
-            <div class="file-upload-group">
-              <label>Thumbnail (.svg)</label>
-              <input type="file" id="b-thumb" accept=".svg">
-            </div>
-            <div class="file-upload-group">
-              <label>Content Folder</label>
-              <input type="file" id="b-content" webkitdirectory directory multiple>
-            </div>
-          </div>
-
-          <button type="submit" id="build-btn" class="full-width">Build & Download .rmf</button>
-        </form>
+      <div id="results-container" class="hidden">
+        <div class="results" id="results-log"></div>
+        <button id="package-btn" class="hidden">Download as .rmf</button>
+        <button id="reset-btn">Clear</button>
       </div>
     </div>
-    <script type="module" src="/src/main.ts"></script>
-  </body>
+
+    <div class="rmf-card hidden" id="view-builder">
+      <form id="builder-form" onsubmit="event.preventDefault();">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="b-id">Mod ID (e.g., com.author.modname)</label>
+            <input type="text" id="b-id" required placeholder="com.example.mod">
+          </div>
+          <div class="form-group">
+            <label for="b-name">Mod Name</label>
+            <input type="text" id="b-name" required placeholder="My Awesome Mod">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="b-version">Version</label>
+            <input type="text" id="b-version" required placeholder="1.0.0">
+          </div>
+          <div class="form-group">
+            <label for="b-author">Author</label>
+            <input type="text" id="b-author" required placeholder="Your Name">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="b-desc">Description (Optional)</label>
+          <textarea id="b-desc" rows="3" placeholder="Briefly describe your mod..."></textarea>
+        </div>
+
+        <div class="file-upload-grid">
+          <div class="file-upload-group">
+            <label>Icon (.svg, .png)</label>
+            <input type="file" id="b-icon" accept=".svg,.png">
+          </div>
+          <div class="file-upload-group">
+            <label>Thumbnail (.svg, .png)</label>
+            <input type="file" id="b-thumb" accept=".svg,.png">
+          </div>
+          <div class="file-upload-group">
+            <label>Content Folder</label>
+            <input type="file" id="b-content" webkitdirectory directory multiple>
+          </div>
+        </div>
+
+        <div class="meta-fs-container">
+          <h3>Package Preview</h3>
+          <div id="meta-fs" class="meta-fs">
+            <div class="fs-item root"><span class="icon">📦</span> <span class="name">mod.rmf</span></div>
+            <div class="fs-children" id="fs-root-children">
+              <!-- Dynamic File Tree generated by main.ts -->
+              <p class="fs-empty">Fill out the form and add files to see the package preview.</p>
+            </div>
+          </div>
+        </div>
+
+        <button type="submit" id="build-btn" class="full-width">Build & Download .rmf</button>
+      </form>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+
 </html>

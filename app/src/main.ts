@@ -169,6 +169,81 @@ tabBuilder.addEventListener('click', () => {
 // --- Builder Logic ---
 const builderForm = document.getElementById('builder-form')! as HTMLFormElement
 
+// --- Meta Filesystem Logic ---
+const fsRootChildren = document.getElementById('fs-root-children')! as HTMLDivElement
+
+function updateMetaFilesystem() {
+  const iconInput = document.getElementById('b-icon') as HTMLInputElement
+  const thumbInput = document.getElementById('b-thumb') as HTMLInputElement
+  const contentInput = document.getElementById('b-content') as HTMLInputElement
+  const idValue = (document.getElementById('b-id') as HTMLInputElement).value
+  
+  if (!idValue && !iconInput.files?.length && !thumbInput.files?.length && !contentInput.files?.length) {
+      fsRootChildren.innerHTML = '<p class="fs-empty">Fill out the form and add files to see the package preview.</p>'
+      return
+  }
+  
+  fsRootChildren.innerHTML = ''
+  
+  // 1. Manifest
+  const manifestEl = document.createElement('div')
+  manifestEl.className = 'fs-item'
+  manifestEl.innerHTML = '<span class="icon">📄</span> <span class="name">manifest.json</span>'
+  fsRootChildren.appendChild(manifestEl)
+  
+  // 2. Icon
+  if (iconInput.files && iconInput.files.length > 0) {
+    const iconEl = document.createElement('div')
+    iconEl.className = 'fs-item'
+    iconEl.innerHTML = `<span class="icon">🖼️</span> <span class="name">icon.${iconInput.files[0].name.split('.').pop()}</span>`
+    fsRootChildren.appendChild(iconEl)
+  }
+  
+  // 3. Thumbnail
+  if (thumbInput.files && thumbInput.files.length > 0) {
+    const thumbEl = document.createElement('div')
+    thumbEl.className = 'fs-item'
+    thumbEl.innerHTML = `<span class="icon">🖼️</span> <span class="name">thumbnail.${thumbInput.files[0].name.split('.').pop()}</span>`
+    fsRootChildren.appendChild(thumbEl)
+  }
+  
+  // 4. Content Folder
+  if (contentInput.files && contentInput.files.length > 0) {
+    const contentDirEl = document.createElement('div')
+    contentDirEl.className = 'fs-item folder'
+    contentDirEl.innerHTML = `<span class="icon">📁</span> <span class="name">content/</span>`
+    fsRootChildren.appendChild(contentDirEl)
+    
+    // Add up to 5 items to show a preview
+    const previewCount = Math.min(5, contentInput.files.length)
+    for (let i = 0; i < previewCount; i++) {
+        const file = contentInput.files[i]
+        const parts = file.webkitRelativePath.split('/')
+        parts.shift()
+        const newPath = parts.length > 0 ? parts.join('/') : file.name
+        
+        const fileEl = document.createElement('div')
+        fileEl.className = 'fs-item nested'
+        fileEl.innerHTML = `<span class="icon">📄</span> <span class="name">${newPath}</span>`
+        fsRootChildren.appendChild(fileEl)
+    }
+    
+    if (contentInput.files.length > 5) {
+        const moreEl = document.createElement('div')
+        moreEl.className = 'fs-item nested more'
+        moreEl.innerHTML = `<span>... and ${contentInput.files.length - 5} more files</span>`
+        fsRootChildren.appendChild(moreEl)
+    }
+  }
+}
+
+// Attach listeners
+document.getElementById('b-id')?.addEventListener('input', updateMetaFilesystem)
+document.getElementById('b-icon')?.addEventListener('change', updateMetaFilesystem)
+document.getElementById('b-thumb')?.addEventListener('change', updateMetaFilesystem)
+document.getElementById('b-content')?.addEventListener('change', updateMetaFilesystem)
+
+
 builderForm.addEventListener('submit', async (e) => {
   e.preventDefault()
   
@@ -198,12 +273,14 @@ builderForm.addEventListener('submit', async (e) => {
   
   // Add icon
   if (iconInput.files && iconInput.files.length > 0) {
-    zip.file('icon.svg', iconInput.files[0])
+    const ext = iconInput.files[0].name.split('.').pop()
+    zip.file(`icon.${ext}`, iconInput.files[0])
   }
   
   // Add thumbnail
   if (thumbInput.files && thumbInput.files.length > 0) {
-    zip.file('thumbnail.svg', thumbInput.files[0])
+    const ext = thumbInput.files[0].name.split('.').pop()
+    zip.file(`thumbnail.${ext}`, thumbInput.files[0])
   }
   
   // Add content files
