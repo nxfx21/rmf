@@ -145,3 +145,86 @@ packageBtn.addEventListener('click', async () => {
 })
 
 resetBtn.addEventListener('click', clearLog)
+
+// --- Tab Switching ---
+const tabValidator = document.getElementById('tab-validator')! as HTMLButtonElement
+const tabBuilder = document.getElementById('tab-builder')! as HTMLButtonElement
+const viewValidator = document.getElementById('view-validator')! as HTMLDivElement
+const viewBuilder = document.getElementById('view-builder')! as HTMLDivElement
+
+tabValidator.addEventListener('click', () => {
+  tabValidator.classList.add('active')
+  tabBuilder.classList.remove('active')
+  viewValidator.classList.remove('hidden')
+  viewBuilder.classList.add('hidden')
+})
+
+tabBuilder.addEventListener('click', () => {
+  tabBuilder.classList.add('active')
+  tabValidator.classList.remove('active')
+  viewBuilder.classList.remove('hidden')
+  viewValidator.classList.add('hidden')
+})
+
+// --- Builder Logic ---
+const builderForm = document.getElementById('builder-form')! as HTMLFormElement
+
+builderForm.addEventListener('submit', async (e) => {
+  e.preventDefault()
+  
+  const idValue = (document.getElementById('b-id') as HTMLInputElement).value
+  const nameValue = (document.getElementById('b-name') as HTMLInputElement).value
+  const versionValue = (document.getElementById('b-version') as HTMLInputElement).value
+  const authorValue = (document.getElementById('b-author') as HTMLInputElement).value
+  const descValue = (document.getElementById('b-desc') as HTMLTextAreaElement).value
+  
+  const iconInput = document.getElementById('b-icon') as HTMLInputElement
+  const thumbInput = document.getElementById('b-thumb') as HTMLInputElement
+  const contentInput = document.getElementById('b-content') as HTMLInputElement
+  
+  const newManifest = {
+    rmf_version: "1.0",
+    id: idValue,
+    name: nameValue,
+    version: versionValue,
+    author: authorValue,
+    description: descValue || undefined
+  }
+  
+  const zip = new JSZip()
+  
+  // Add manifest
+  zip.file('manifest.json', JSON.stringify(newManifest, null, 2))
+  
+  // Add icon
+  if (iconInput.files && iconInput.files.length > 0) {
+    zip.file('icon.svg', iconInput.files[0])
+  }
+  
+  // Add thumbnail
+  if (thumbInput.files && thumbInput.files.length > 0) {
+    zip.file('thumbnail.svg', thumbInput.files[0])
+  }
+  
+  // Add content files
+  if (contentInput.files && contentInput.files.length > 0) {
+    const contentFolder = zip.folder('content')
+    for (let i = 0; i < contentInput.files.length; i++) {
+        const file = contentInput.files[i]
+        // webkitRelativePath contains the full relative path, e.g. "foldername/file.txt"
+        // Strip the top-level folder name to nest it nicely inside content/
+        const parts = file.webkitRelativePath.split('/')
+        parts.shift() 
+        const newPath = parts.length > 0 ? parts.join('/') : file.name
+        contentFolder?.file(newPath, file)
+    }
+  }
+  
+  const content = await zip.generateAsync({ type: 'blob' })
+  const url = URL.createObjectURL(content)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${newManifest.id}.rmf`
+  a.click()
+  URL.revokeObjectURL(url)
+})
