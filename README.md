@@ -2,6 +2,9 @@
 
 A universal, platform-neutral format for Roblox modding packages.
 
+###### Disclaimer. The logic was written by me. A human. The UI however is made by Gemini 3 because my lazy ass can't be bothered to make a frontend. Regarding the commit names, I use GitHub Desktop which autofills them with AI Slop, however IT IS useful.
+
+---
 ## Why RMF?
 Traditional modding often involves platform-specific metadata or messy zip structures. RMF provides a standardized way to package Roblox mods that is:
 - **Cross-Platform**: No OS-specific files.
