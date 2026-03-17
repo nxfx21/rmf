@@ -1,0 +1,278 @@
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import { useForm } from 'vee-validate'
+import { toTypedSchema } from '@vee-validate/zod'
+import * as zod from 'zod'
+
+const props = defineProps<{
+  modelValue: any
+}>()
+
+const emit = defineEmits(['update:modelValue'])
+
+// Zod Schema for RMF Manifest
+const schema = zod.object({
+  rmf_version: zod.string().default('1.0.0'),
+  id: zod.string().min(3, 'ID must be at least 3 characters').regex(/^[a-z0-9.]+$/, 'ID must be lowercase alphanumeric with dots'),
+  name: zod.string().min(1, 'Name is required'),
+  version: zod.string().regex(/^\d+\.\d+\.\d+$/, 'Version must be SemVer (e.g. 1.0.0)'),
+  author: zod.string().min(1, 'Author is required'),
+  description: zod.string().optional(),
+  tags: zod.array(zod.string()).default([]),
+  links: zod.record(zod.string(), zod.string().url('Must be a valid URL')).default({})
+})
+
+const { values, errors, defineField, setValues } = useForm({
+  validationSchema: toTypedSchema(schema),
+  initialValues: props.modelValue
+})
+
+const [id, idProps] = defineField('id')
+const [name, nameProps] = defineField('name')
+const [version, versionProps] = defineField('version')
+const [author, authorProps] = defineField('author')
+const [description, descriptionProps] = defineField('description')
+
+// Reactive sync with parent
+onMounted(() => {
+  setValues(props.modelValue)
+})
+
+const updateParent = () => {
+  emit('update:modelValue', values)
+}
+
+// Tag Management
+const tagInput = ref('')
+const addTag = () => {
+  if (tagInput.value && !values.tags.includes(tagInput.value)) {
+    const newTags = [...values.tags, tagInput.value]
+    setValues({ ...values, tags: newTags })
+    updateParent()
+    tagInput.value = ''
+  }
+}
+
+const removeTag = (tag: string) => {
+  const newTags = values.tags.filter((t: string) => t !== tag)
+  setValues({ ...values, tags: newTags })
+  updateParent()
+}
+
+// Link Management
+const linkKey = ref('')
+const linkUrl = ref('')
+const addLink = () => {
+  if (linkKey.value && linkUrl.value) {
+    const newLinks = { ...values.links, [linkKey.value]: linkUrl.value }
+    setValues({ ...values, links: newLinks })
+    updateParent()
+    linkKey.value = ''
+    linkUrl.value = ''
+  }
+}
+
+const removeLink = (key: string) => {
+  const newLinks = { ...values.links }
+  delete newLinks[key]
+  setValues({ ...values, links: newLinks })
+  updateParent()
+}
+</script>
+
+<template>
+  <div class="card spec-editor">
+    <div class="header">
+      <h2>Mod Manifest</h2>
+      <span class="badge" :class="{ 'badge-success': Object.keys(errors).length === 0, 'badge-error': Object.keys(errors).length > 0 }">
+        {{ Object.keys(errors).length === 0 ? '✓ Valid' : '⚠ Invalid' }}
+      </span>
+    </div>
+
+    <div class="form-grid">
+      <div class="form-group">
+        <label>RMF ID</label>
+        <input v-model="id" v-bind="idProps" placeholder="com.example.mod" @input="updateParent" />
+        <span class="error-msg" v-if="errors.id">{{ errors.id }}</span>
+      </div>
+
+      <div class="form-group">
+        <label>Friendly Name</label>
+        <input v-model="name" v-bind="nameProps" placeholder="My Awesome Mod" @input="updateParent" />
+        <span class="error-msg" v-if="errors.name">{{ errors.name }}</span>
+      </div>
+
+      <div class="form-group">
+        <label>Version (SemVer)</label>
+        <input v-model="version" v-bind="versionProps" placeholder="1.0.0" @input="updateParent" />
+        <span class="error-msg" v-if="errors.version">{{ errors.version }}</span>
+      </div>
+
+      <div class="form-group">
+        <label>Author</label>
+        <input v-model="author" v-bind="authorProps" placeholder="Creator Name" @input="updateParent" />
+        <span class="error-msg" v-if="errors.author">{{ errors.author }}</span>
+      </div>
+
+      <div class="form-group full-width">
+        <label>Description</label>
+        <textarea v-model="description" v-bind="descriptionProps" rows="2" placeholder="Brief description..." @input="updateParent"></textarea>
+      </div>
+
+      <div class="form-group full-width">
+        <label>Tags</label>
+        <div class="input-row">
+          <input v-model="tagInput" placeholder="Add tag..." @keyup.enter="addTag" />
+          <button class="secondary mini" @click="addTag">Add</button>
+        </div>
+        <div class="chips-container">
+          <span v-for="tag in values.tags" :key="tag" class="chip clickable" @click="removeTag(tag)">
+            {{ tag }} <span class="close">×</span>
+          </span>
+        </div>
+      </div>
+
+      <div class="form-group full-width">
+        <label>Links (GitHub, Discord, etc.)</label>
+        <div class="input-row multi">
+          <input v-model="linkKey" placeholder="Label" class="short" />
+          <input v-model="linkUrl" placeholder="https://..." class="long" />
+          <button class="secondary mini" @click="addLink">Add</button>
+        </div>
+        <div class="link-list">
+          <div v-for="(url, key) in values.links" :key="String(key)" class="link-item">
+            <strong>{{ key }}:</strong> <span>{{ url }}</span>
+            <button class="icon-btn danger" @click="removeLink(String(key))">×</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.spec-editor {
+  text-align: left;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+h2 { margin: 0; }
+
+.badge {
+  padding: 0.4rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.badge-success { background: rgba(0, 230, 118, 0.2); color: var(--success); }
+.badge-error { background: rgba(255, 74, 74, 0.2); color: var(--error); }
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-group.full-width { grid-column: span 2; }
+
+label {
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #666;
+  letter-spacing: 1px;
+}
+
+input, textarea {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  padding: 0.8rem;
+  color: white;
+  font-family: inherit;
+  font-size: 0.95rem;
+}
+
+input:focus, textarea:focus {
+  border-color: var(--accent);
+  outline: none;
+  background: rgba(0, 162, 255, 0.05);
+}
+
+.error-msg {
+  color: var(--error);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.input-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.input-row.multi .short { flex: 1; }
+.input-row.multi .long { flex: 2; }
+
+.chips-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.chip {
+  background: rgba(0, 162, 255, 0.1);
+  color: var(--accent);
+  padding: 0.3rem 0.8rem;
+  border-radius: 15px;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid rgba(0, 162, 255, 0.2);
+}
+
+.chip.clickable { cursor: pointer; transition: all 0.2s; }
+.chip.clickable:hover { background: rgba(0, 162, 255, 0.2); }
+
+.link-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.link-item {
+  background: rgba(255,255,255,0.01);
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.9rem;
+}
+
+.link-item span { flex: 1; color: #888; overflow: hidden; text-overflow: ellipsis; }
+
+.icon-btn.danger {
+  background: none;
+  border: none;
+  color: var(--error);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0 0.5rem;
+}
+</style>

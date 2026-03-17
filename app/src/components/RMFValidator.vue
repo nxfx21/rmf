@@ -51,9 +51,36 @@ const validate = async () => {
     }
   }
 
-  // 2. Recommendations
+  // 2. Platform-specific files (Recommendation 1)
+  const platformFiles = ['.DS_Store', 'thumbs.db', '.plist', '.ini', '.dat']
+  props.files.forEach(f => {
+    const name = f.name.toLowerCase()
+    if (platformFiles.some(pf => name.includes(pf))) {
+      newResults.push({ type: 'error', message: `Found platform-specific file: ${f.name}. These should be removed.` })
+    }
+  })
+
+  // 3. Optional Manifest Fields
+  if (manifestData.value) {
+    const optional = ['description', 'tags', 'links', 'dependencies']
+    optional.forEach(field => {
+      if (manifestData.value[field]) {
+        newResults.push({ type: 'success', message: `Found optional field: ${field}` })
+      }
+    })
+  }
+
+  // 4. Media & Documentation Recommendations
   if (!findFile('icon.png') && !findFile('icon.svg')) {
-    newResults.push({ type: 'error', message: 'Recommendation: Include icon.png or icon.svg' })
+    newResults.push({ type: 'error', message: 'Recommendation: Include icon.png or icon.svg (512x512)' })
+  }
+  
+  if (!findFile('thumbnail.png') && !findFile('thumbnail.svg')) {
+    newResults.push({ type: 'error', message: 'Recommendation: Include thumbnail.png or thumbnail.svg (1920x1080)' })
+  }
+
+  if (!findFile('README.md')) {
+    newResults.push({ type: 'error', message: 'Recommendation: Include a README.md file' })
   }
   
   if (!props.files.some(f => (f as any).webkitRelativePath.includes('/content/'))) {

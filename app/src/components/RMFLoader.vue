@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-const emit = defineEmits(['loaded'])
+const emit = defineEmits(['loaded', 'create'])
 const isDragging = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
 
@@ -34,11 +34,13 @@ const triggerFileInput = () => {
   >
     <div class="loader-content">
       <div class="icon-large">📦</div>
-      <h2>Select your mod folder</h2>
-      <p>Drag and drop your mod directory here, or click to browse.</p>
+      <h2>Get Started with RMF</h2>
+      <p>Import an existing mod folder or start a new project from scratch.</p>
       
       <div class="actions">
-        <button @click="triggerFileInput">Select Folder</button>
+        <button class="primary" @click="triggerFileInput">📁 Select Folder</button>
+        <button class="secondary" @click="emit('create')">✨ Create New Mod</button>
+        
         <input 
           type="file" 
           ref="fileInput"
@@ -89,7 +91,16 @@ h2 {
 }
 
 .actions {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
   margin-bottom: 2rem;
+}
+
+@media (max-width: 500px) {
+  .actions {
+    flex-direction: column;
+  }
 }
 
 .info-badges {
