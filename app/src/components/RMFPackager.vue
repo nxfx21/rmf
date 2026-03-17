@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import JSZip from 'jszip'
 import Swal from 'sweetalert2'
+import { Package } from 'lucide-vue-next'
 import { projectStore, useFileSystem } from '../store'
 
 const { readFile, readDirRecursive } = useFileSystem()
@@ -78,7 +79,9 @@ const packageMod = async () => {
 <template>
   <div class="packaging-row">
     <button @click="packageMod" :disabled="isPackaging" class="package-btn">
-      <i class="pi pi-box"></i> {{ isPackaging ? 'Processing...' : 'Package Mod' }}
+      <Package :size="18" v-if="!isPackaging" />
+      <span v-if="isPackaging">Processing...</span>
+      <span v-else>Package Mod</span>
     </button>
   </div>
 </template>
@@ -86,20 +89,8 @@ const packageMod = async () => {
 <style scoped>
 .package-btn {
   background: linear-gradient(135deg, var(--success) 0%, #00B676 100%);
-}
-</style>
-
-<style scoped>
-.packaging-row {
-  display: inline-block;
-}
-
-button {
-  background: linear-gradient(135deg, var(--success) 0%, #00B676 100%);
-  box-shadow: 0 4px 12px rgba(0, 230, 118, 0.3);
-}
-
-button:hover {
-  box-shadow: 0 6px 20px rgba(0, 230, 118, 0.4);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
 }
 </style>

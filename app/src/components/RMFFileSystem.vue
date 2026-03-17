@@ -1,15 +1,14 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import Tree from 'primevue/tree'
-import Button from 'primevue/button'
+import { Folder, FileText, Trash2, Plus, RefreshCw, AlertCircle, Upload, Settings, Info, Image as ImageIcon } from 'lucide-vue-next'
 import { useFileSystem } from '../store'
 import Swal from 'sweetalert2'
 
 const { writeFile, unlink, readDirRecursive, pfs } = useFileSystem()
-
-const emit = defineEmits(['select'])
 const nodes = ref<any[]>([])
 const selectedKey = ref<Record<string, boolean>>({})
+const emit = defineEmits(['select'])
 
 watch(selectedKey, (newVal) => {
   const key = Object.keys(newVal)[0]
@@ -32,14 +31,15 @@ const refreshTree = async () => {
       
       if (!node) {
         const isFile = index === parts.length - 1
-        let icon = isFile ? 'pi pi-file' : 'pi pi-folder'
+        let type = isFile ? 'file' : 'directory'
+        let subType = 'default'
         let styleClass = ''
         
         // Spec Indicators
         if (isFile) {
-          if (part === 'manifest.json') icon = 'pi pi-cog';
-          else if (part === 'README.md') icon = 'pi pi-info-circle';
-          else if (part === 'icon.png' || part === 'thumbnail.png') icon = 'pi pi-image';
+          if (part === 'manifest.json') subType = 'manifest';
+          else if (part === 'README.md') subType = 'readme';
+          else if (part === 'icon.png' || part === 'thumbnail.png') subType = 'image';
           
           // Warnings for platform specific files
           if (['.DS_Store', 'thumbs.db', '.plist', '.ini', '.dat'].includes(part)) {
@@ -50,7 +50,8 @@ const refreshTree = async () => {
         node = {
           key: existingPath,
           label: part,
-          icon: icon,
+          type: type,
+          subType: subType,
           styleClass: styleClass,
           children: isFile ? undefined : []
         }
@@ -58,7 +59,7 @@ const refreshTree = async () => {
       }
       currentLevel = node.children || []
     })
-  })
+  });
   
   nodes.value = root
 }
@@ -134,34 +135,41 @@ defineExpose({ refreshTree })
 <template>
   <div class="card fs-explorer animate-fade-in">
     <div class="header">
-      <h3>📁 Project Explorer</h3>
+      <h3>Project Explorer</h3>
       <div class="actions">
-        <label title="Upload Files" class="custom-action p-button p-button-sm p-button-secondary">
-          <i class="pi pi-upload"></i>
+        <button 
+          class="mini secondary action-btn" 
+          title="Refresh Tree" 
+          @click="refreshTree"
+        >
+          <RefreshCw :size="16" />
+        </button>
+        <label title="Upload Files" class="custom-action action-btn">
+          <Upload :size="16" />
           <input type="file" multiple @change="handleFileUpload" hidden />
         </label>
-        <Button 
-          icon="pi pi-file-plus" 
-          severity="secondary" 
-          size="small" 
+        <button 
+          class="mini secondary action-btn"
           title="New File"
           @click="createNew('file')"
-        />
-        <Button 
-          icon="pi pi-folder-plus" 
-          severity="secondary" 
-          size="small" 
+        >
+          <Plus :size="14" /> <FileText :size="12" />
+        </button>
+        <button 
+          class="mini secondary action-btn"
           title="New Folder"
           @click="createNew('folder')"
-        />
-        <Button 
-          icon="pi pi-trash" 
-          severity="danger" 
-          size="small" 
+        >
+          <Plus :size="14" /> <Folder :size="12" />
+        </button>
+        <button 
+          class="mini secondary danger action-btn"
           title="Delete selected"
           :disabled="Object.keys(selectedKey).length === 0"
           @click="deleteSelected"
-        />
+        >
+          <Trash2 :size="16" />
+        </button>
       </div>
     </div>
 
@@ -171,7 +179,15 @@ defineExpose({ refreshTree })
         selectionMode="single" 
         v-model:selectionKeys="selectedKey"
         class="rmf-tree"
-      />
+      >
+        <template #nodeicon="slotProps">
+          <Folder v-if="slotProps.node.type === 'directory'" :size="16" class="node-icon dir" />
+          <Settings v-else-if="slotProps.node.subType === 'manifest'" :size="16" class="node-icon manifest" />
+          <Info v-else-if="slotProps.node.subType === 'readme'" :size="16" class="node-icon readme" />
+          <ImageIcon v-else-if="slotProps.node.subType === 'image'" :size="16" class="node-icon image" />
+          <FileText v-else :size="16" class="node-icon file" />
+        </template>
+      </Tree>
       <div v-if="nodes.length === 0" class="empty-hint">
         Import a project or use the buttons above to start.
       </div>
@@ -179,9 +195,9 @@ defineExpose({ refreshTree })
 
     <div class="footer-info">
       <div class="legend">
-        <span class="warning-dot"></span> Non-compliant file warning
+        <AlertCircle :size="12" style="color: var(--error)" /> Non-compliant file
       </div>
-      <p>LightningFS Powered VFS</p>
+      <p>LightningFS VFS</p>
     </div>
   </div>
 </template>
@@ -192,26 +208,46 @@ defineExpose({ refreshTree })
   display: flex;
   flex-direction: column;
   height: 100%;
+  padding: 1.5rem;
 }
 
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
 }
 
-h3 { margin: 0; font-size: 1.1rem; }
+h3 { margin: 0; font-size: 1rem; font-weight: 600; color: #fff; }
 
-.actions { display: flex; gap: 0.25rem; }
+.actions { display: flex; gap: 0.5rem; }
+
+.action-btn {
+  width: 2.2rem;
+  height: 2.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--glass-border);
+  transition: all 0.2s;
+}
+
+.action-btn:hover:not(:disabled) {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.2);
+}
 
 .tree-container {
   flex-grow: 1;
-  min-height: 300px;
-  max-height: 500px;
+  min-height: 350px;
+  max-height: 550px;
   overflow-y: auto;
-  background: rgba(0,0,0,0.1);
-  border-radius: 8px;
+  background: rgba(0,0,0,0.15);
+  border-radius: 12px;
   padding: 0.5rem;
   border: 1px solid var(--glass-border);
   position: relative;
@@ -219,30 +255,19 @@ h3 { margin: 0; font-size: 1.1rem; }
 
 .empty-hint {
   position: absolute;
-  top: 50%;
+  top: 40%;
   left: 50%;
   transform: translate(-50%, -50%);
-  color: #555;
+  color: #444;
   font-size: 0.8rem;
   text-align: center;
   width: 80%;
 }
 
-.custom-action {
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 0.5rem;
-  width: 2.2rem;
-  height: 2.2rem;
-  border-radius: 4px;
-}
-
 .footer-info {
   margin-top: 1rem;
-  font-size: 0.7rem;
-  color: #666;
+  font-size: 0.75rem;
+  color: #555;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -251,33 +276,48 @@ h3 { margin: 0; font-size: 1.1rem; }
 .legend {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-}
-
-.warning-dot {
-  width: 8px;
-  height: 8px;
-  background: var(--error);
-  border-radius: 50%;
+  gap: 0.4rem;
 }
 
 :deep(.p-tree) {
   background: transparent;
   border: none;
-  color: #ccc;
-  font-size: 0.9rem;
+  color: #aaa;
+  font-size: 0.85rem;
 }
 
-:deep(.p-tree-toggler) { color: var(--accent); }
-:deep(.p-tree-node-content.p-highlight) { background: rgba(0, 162, 255, 0.1); color: var(--accent); }
+:deep(.p-tree-node-content) {
+  padding: 0.3rem 0.5rem;
+  border-radius: 6px;
+}
+
+:deep(.p-tree-toggler) { 
+  color: #555; 
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+:deep(.p-tree-node-content.p-highlight) { 
+  background: rgba(0, 162, 255, 0.1); 
+  color: var(--accent); 
+}
+
+.node-icon { margin-right: 0.5rem; }
+.node-icon.dir { color: var(--accent); }
+.node-icon.manifest { color: #facc15; }
+.node-icon.readme { color: #38bdf8; }
+.node-icon.image { color: #a855f7; }
+.node-icon.file { color: #71717a; }
 
 :deep(.warning-node) .p-treenode-label {
   color: var(--error);
   text-decoration: line-through;
-  opacity: 0.6;
+  opacity: 0.5;
 }
 
-:deep(.warning-node) .p-treenode-icon {
-  color: var(--error);
+button.danger:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: #ef4444;
+  color: #ef4444;
 }
 </style>

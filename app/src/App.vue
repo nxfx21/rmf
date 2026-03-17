@@ -1,14 +1,18 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import JSZip from 'jszip'
+import { RotateCcw, LayoutPanelLeft, Eye } from 'lucide-vue-next'
 import RMFLoader from './components/RMFLoader.vue'
 import RMFMetadataEditor from './components/RMFMetadataEditor.vue'
 import RMFFileSystem from './components/RMFFileSystem.vue'
 import RMFFilePreviewer from './components/RMFFilePreviewer.vue'
 import RMFPackager from './components/RMFPackager.vue'
+import RMFPreview from './components/RMFPreview.vue'
 import { projectStore, useFileSystem } from './store'
 
 const { writeFile, resetFs, initializeStore } = useFileSystem()
 const selectedFile = ref('')
+const viewMode = ref<'edit' | 'preview'>('edit')
 
 const onFileSelected = (path: string) => {
   selectedFile.value = path
@@ -19,35 +23,52 @@ onMounted(async () => {
 })
 
 const handleFilesImported = async (importedFiles: File[]) => {
-  // Try to find manifest.json
-  const manifestFile = importedFiles.find(f => f.name === 'manifest.json' || (f as any).webkitRelativePath?.endsWith('manifest.json'))
-  
-  if (manifestFile) {
-    try {
-      const text = await manifestFile.text()
-      const json = JSON.parse(text)
-      projectStore.manifest = { ...projectStore.manifest, ...json }
-    } catch (e) {
-      console.error("Manifest parse failed", e)
+  if (importedFiles.length === 1 && (importedFiles[0].name.endsWith('.zip') || importedFiles[0].name.endsWith('.rmf'))) {
+    const zip = await JSZip.loadAsync(importedFiles[0])
+    await resetFs()
+    for (const [path, file] of Object.entries(zip.files)) {
+      if (file.dir) continue
+      const content = await file.async('uint8array')
+      if (path === 'manifest.json') {
+        try {
+          const text = new TextDecoder().decode(content)
+          projectStore.manifest = { ...projectStore.manifest, ...JSON.parse(text) }
+        } catch (e) {
+          console.error("Manifest parse failed", e)
+        }
+      } else {
+        await writeFile(path, content)
+      }
+    }
+  } else {
+    const manifestFile = importedFiles.find(f => f.name === 'manifest.json' || (f as any).webkitRelativePath?.endsWith('manifest.json'))
+    let rootPath = ''
+    if (manifestFile) {
+      const relPath = (manifestFile as any).webkitRelativePath || manifestFile.name
+      if (relPath.includes('/')) {
+        rootPath = relPath.substring(0, relPath.lastIndexOf('/') + 1)
+      }
+    }
+    await resetFs()
+    for (const file of importedFiles) {
+      let path = (file as any).webkitRelativePath || file.name
+      if (rootPath && path.startsWith(rootPath)) {
+        path = path.slice(rootPath.length)
+      }
+      if (path === 'manifest.json') {
+        try {
+          const text = await file.text()
+          projectStore.manifest = { ...projectStore.manifest, ...JSON.parse(text) }
+        } catch (e) {
+          console.error("Manifest parse failed", e)
+        }
+      } else {
+        await writeFile(path, file)
+      }
     }
   }
-
-  // Import files into LightningFS
-  const rootDir = (importedFiles[0] as any).webkitRelativePath?.split('/')[0] || ''
-  
-  for (const file of importedFiles) {
-    let path = (file as any).webkitRelativePath || file.name
-    if (rootDir && path.startsWith(rootDir + '/')) {
-      path = path.slice(rootDir.length + 1)
-    }
-    
-    if (path === 'manifest.json') continue
-    await writeFile(path, file)
-  }
-  
   projectStore.isInitialized = true
 }
-
 
 const reset = async () => {
   await resetFs()
@@ -80,14 +101,31 @@ const reset = async () => {
 
     <div v-else class="project-dashboard animate-fade-in">
       <div class="dashboard-controls">
-        <button class="secondary mini" @click="reset">← Reset Project</button>
+        <div class="left-controls">
+          <button class="secondary mini flex-btn" @click="reset">
+            <RotateCcw :size="14" /> Reset Project
+          </button>
+          <div class="mode-switcher">
+            <button :class="{ secondary: viewMode !== 'edit' }" @click="viewMode = 'edit'" class="flex-btn">
+              <LayoutPanelLeft :size="14" /> Editor
+            </button>
+            <button :class="{ secondary: viewMode !== 'preview' }" @click="viewMode = 'preview'" class="flex-btn">
+              <Eye :size="14" /> Preview
+            </button>
+          </div>
+        </div>
         <RMFPackager />
       </div>
 
       <div class="dashboard-grid">
         <div class="col-main">
-          <RMFMetadataEditor v-model="projectStore.manifest" />
-          <RMFFilePreviewer v-if="selectedFile.endsWith('.md')" :filePath="selectedFile" />
+          <div v-if="viewMode === 'edit'" class="animate-fade-in">
+            <RMFMetadataEditor v-model="projectStore.manifest" />
+            <RMFFilePreviewer v-if="selectedFile.endsWith('.md')" :filePath="selectedFile" />
+          </div>
+          <div v-else class="animate-fade-in">
+            <RMFPreview />
+          </div>
         </div>
         <div class="col-side">
           <RMFFileSystem @select="onFileSelected" />
@@ -120,6 +158,32 @@ const reset = async () => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2rem;
+}
+
+.left-controls {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.mode-switcher {
+  background: rgba(255,255,255,0.02);
+  padding: 0.3rem;
+  border-radius: 12px;
+  display: flex;
+  gap: 0.3rem;
+}
+
+.mode-switcher button {
+  padding: 0.4rem 1rem;
+  font-size: 0.85rem;
+  box-shadow: none;
+}
+
+.flex-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
 }
 
 .dashboard-grid {

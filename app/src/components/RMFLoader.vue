@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { Box, FolderOpen, Archive as ArchiveIcon, Plus } from 'lucide-vue-next'
 
 const emit = defineEmits(['loaded', 'create'])
 const isDragging = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
+const zipInput = ref<HTMLInputElement | null>(null)
 
 const handleFileChange = (e: Event) => {
   const target = e.target as HTMLInputElement
@@ -22,6 +24,10 @@ const handleDrop = (e: DragEvent) => {
 const triggerFileInput = () => {
   fileInput.value?.click()
 }
+
+const triggerZipInput = () => {
+  zipInput.value?.click()
+}
 </script>
 
 <template>
@@ -33,20 +39,41 @@ const triggerFileInput = () => {
     @drop.prevent="handleDrop"
   >
     <div class="loader-content">
-      <div class="icon-large">📦</div>
+      <div class="icon-large">
+        <Box :size="64" stroke-width="1.5" />
+      </div>
       <h2>Get Started with RMF</h2>
-      <p>Import an existing mod folder or start a new project from scratch.</p>
+      <p>Import an existing mod folder, a .zip/.rmf archive, or start a new project.</p>
       
       <div class="actions">
-        <button class="primary" @click="triggerFileInput">📁 Select Folder</button>
-        <button class="secondary" @click="emit('create')">✨ Create New Mod</button>
+        <div class="split-button">
+          <button class="primary main-btn" @click="triggerFileInput" title="Import from Folder">
+            <FolderOpen :size="18" /> Import Folder
+          </button>
+          <button class="primary arrow-btn" @click="triggerZipInput" title="Import from ZIP/RMF">
+            <ArchiveIcon :size="18" />
+          </button>
+        </div>
+        <button class="secondary" @click="emit('create')">
+          <Plus :size="18" /> Create New Mod
+        </button>
         
+        <!-- Folder Input -->
         <input 
           type="file" 
           ref="fileInput"
           webkitdirectory 
           directory 
           multiple 
+          style="display: none" 
+          @change="handleFileChange"
+        />
+        
+        <!-- ZIP/RMF Input -->
+        <input 
+          type="file" 
+          ref="zipInput"
+          accept=".zip,.rmf"
           style="display: none" 
           @change="handleFileChange"
         />
@@ -93,14 +120,52 @@ h2 {
 .actions {
   display: flex;
   justify-content: center;
-  gap: 1rem;
+  gap: 1.5rem;
   margin-bottom: 2rem;
+}
+
+.split-button {
+  display: flex;
+  align-items: stretch;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 162, 255, 0.3);
+}
+
+.split-button button {
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+  margin: 0;
+}
+
+.main-btn {
+  padding-right: 1.5rem;
+  border-right: 1px solid rgba(0,0,0,0.1) !important;
+}
+
+.split-button button, .secondary {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.arrow-btn {
+  padding: 0 0.8rem !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 @media (max-width: 500px) {
   .actions {
     flex-direction: column;
+    align-items: center;
   }
+  .split-button {
+    width: 100%;
+  }
+  .main-btn { flex: 1; }
 }
 
 .info-badges {

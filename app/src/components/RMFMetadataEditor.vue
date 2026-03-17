@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useForm } from 'vee-validate'
 import { toTypedSchema } from '@vee-validate/zod'
 import * as zod from 'zod'
+import { CheckCircle2, AlertTriangle, Plus, X, Link, Image as ImageIcon, Trash2 } from 'lucide-vue-next'
 import { useFileSystem } from '../store'
 import Swal from 'sweetalert2'
 
@@ -145,7 +146,9 @@ const handleAssetUpload = async (e: Event, type: 'icon' | 'thumb') => {
     <div class="header">
       <h2>Mod Manifest</h2>
       <span class="badge" :class="{ 'badge-success': Object.keys(errors).length === 0, 'badge-error': Object.keys(errors).length > 0 }">
-        {{ Object.keys(errors).length === 0 ? '✓ Valid' : '⚠ Invalid' }}
+        <CheckCircle2 v-if="Object.keys(errors).length === 0" :size="14" />
+        <AlertTriangle v-else :size="14" />
+        {{ Object.keys(errors).length === 0 ? 'Valid' : 'Invalid' }}
       </span>
     </div>
 
@@ -183,11 +186,11 @@ const handleAssetUpload = async (e: Event, type: 'icon' | 'thumb') => {
         <label>Tags</label>
         <div class="input-row">
           <input v-model="tagInput" placeholder="Add tag..." @keyup.enter="addTag" />
-          <button class="secondary mini" @click="addTag">Add</button>
+          <button class="secondary mini" @click="addTag"><Plus :size="14" /></button>
         </div>
         <div class="chips-container">
           <span v-for="tag in values.tags" :key="tag" class="chip clickable" @click="removeTag(tag)">
-            {{ tag }} <span class="close">×</span>
+            {{ tag }} <X :size="12" class="close" />
           </span>
         </div>
       </div>
@@ -196,7 +199,7 @@ const handleAssetUpload = async (e: Event, type: 'icon' | 'thumb') => {
         <div class="asset-upload-container">
           <label>Mod Icon (1:1)</label>
           <div class="asset-preview icon-preview" :style="{ backgroundImage: iconPreview ? `url(${iconPreview})` : '' }">
-            <span v-if="!iconPreview">No Icon</span>
+            <span v-if="!iconPreview" class="empty-asset"><ImageIcon :size="24" /> No Icon</span>
             <input type="file" accept="image/png,image/jpeg" @change="handleAssetUpload($event, 'icon')" />
           </div>
           <p class="asset-hint">PNG, 1:1 ratio (e.g. 512x512)</p>
@@ -205,7 +208,7 @@ const handleAssetUpload = async (e: Event, type: 'icon' | 'thumb') => {
         <div class="asset-upload-container">
           <label>Mod Thumbnail (3:2)</label>
           <div class="asset-preview thumb-preview" :style="{ backgroundImage: thumbPreview ? `url(${thumbPreview})` : '' }">
-            <span v-if="!thumbPreview">No Thumbnail</span>
+            <span v-if="!thumbPreview" class="empty-asset"><ImageIcon :size="24" /> No Thumbnail</span>
             <input type="file" accept="image/png,image/jpeg" @change="handleAssetUpload($event, 'thumb')" />
           </div>
           <p class="asset-hint">PNG, 3:2 ratio (e.g. 1200x800)</p>
@@ -217,12 +220,17 @@ const handleAssetUpload = async (e: Event, type: 'icon' | 'thumb') => {
         <div class="input-row multi">
           <input v-model="linkKey" placeholder="Label" class="short" />
           <input v-model="linkUrl" placeholder="https://..." class="long" />
-          <button class="secondary mini" @click="addLink">Add</button>
+          <button class="secondary mini" @click="addLink"><Plus :size="14" /></button>
         </div>
         <div class="link-list">
           <div v-for="(url, key) in values.links" :key="String(key)" class="link-item">
-            <strong>{{ key }}:</strong> <span>{{ url }}</span>
-            <button class="icon-btn danger" @click="removeLink(String(key))">×</button>
+            <Link :size="14" class="link-icon" />
+            <div class="link-info">
+              <strong>{{ key }}:</strong> <span>{{ url }}</span>
+            </div>
+            <button class="icon-btn danger" @click="removeLink(String(key))">
+              <Trash2 :size="14" />
+            </button>
           </div>
         </div>
       </div>
@@ -249,6 +257,9 @@ h2 { margin: 0; }
   border-radius: 20px;
   font-size: 0.8rem;
   font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
 }
 
 .badge-success { background: rgba(0, 230, 118, 0.2); color: var(--success); }
@@ -303,6 +314,13 @@ input:focus, textarea:focus {
   gap: 0.5rem;
 }
 
+.input-row button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.8rem;
+}
+
 .input-row.multi .short { flex: 1; }
 .input-row.multi .long { flex: 2; }
 
@@ -337,15 +355,26 @@ input:focus, textarea:focus {
 
 .link-item {
   background: rgba(255,255,255,0.01);
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
+  padding: 0.8rem 1rem;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   gap: 1rem;
   font-size: 0.9rem;
+  border: 1px solid var(--glass-border);
 }
 
-.link-item span { flex: 1; color: #888; overflow: hidden; text-overflow: ellipsis; }
+.link-icon { color: #555; }
+.link-info { flex: 1; display: flex; align-items: center; gap: 0.5rem; }
+.link-info span { color: #888; overflow: hidden; text-overflow: ellipsis; }
+
+.empty-asset {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  opacity: 0.4;
+}
 
 .icon-btn.danger {
   background: none;
