@@ -36,7 +36,13 @@ const packageMod = async () => {
       zip.file(path, data)
     }
 
-    const blob = await zip.generateAsync({ type: 'blob' })
+    const blob = await zip.generateAsync({ 
+      type: 'blob',
+      compression: 'DEFLATE',
+      compressionOptions: {
+        level: 9
+      }
+    })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url

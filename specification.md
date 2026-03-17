@@ -1,13 +1,13 @@
 # RobloxModFormat (RMF) Specification
 
-**Version**: 1.0.0  
+**Version**: Alpha - 1.0.1  
 **Project Name**: RobloxModFormat (RMF)
 
 ## Overview
 RobloxModFormat (RMF) is a cross-platform, easily parsable package format for Roblox modifications. It prioritizes simplicity and universal compatibility by avoiding platform-specific metadata files (like `.plist` or `.ini`) and using standard web formats (JSON, PNG, Markdown).
 
 ## The Container
-All RMF projects are distributed as standard **ZIP** archives.
+All RMF projects are distributed as standard **ZIP** archives (with high compression).
 - **File Extension**: `.rmf` (preferred) or `.zip`.
 
 ## Directory Structure
@@ -60,9 +60,9 @@ The `manifest.json` file is the brain of the mod. It must be valid JSON.
 ```
 
 ## Media Assets
-- **icon.svg** (or .png): Recommended size is 512x512.
-- **thumbnail.svg** (or .png): Recommended size is 1920x1080 (16:9 aspect ratio).
-- Format: SVG is preferred for scaling; PNG/JPG are supported.
+- **icon.png** (or .svg): Recommended size 512x512 (**1:1 aspect ratio**).
+- **thumbnail.png** (or .svg): Recommended size 1200x800 (**3:2 aspect ratio**).
+- Format: PNG/JPG are preferred for common use; SVG is supported.
 
 ## Content and Assets
 - **content/**: This directory should contain the modification data. For Roblox, this typically means:

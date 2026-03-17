@@ -71,8 +71,8 @@ const reset = async () => {
     <p class="subtitle">Spec-Compliant Mod Management</p>
   </header>
 
-  <main>
-    <div v-if="!projectStore.isInitialized && !projectStore.manifest.id" class="animate-fade-in">
+  <main :class="{ 'onboarding-wrapper': !projectStore.isInitialized && !projectStore.manifest.id }">
+    <div v-if="!projectStore.isInitialized && !projectStore.manifest.id" class="animate-fade-in onboarding-content">
       <div class="initial-actions">
         <RMFLoader @loaded="handleFilesImported" @create="projectStore.manifest.id = 'com.new.mod'" />
       </div>
@@ -107,7 +107,7 @@ const reset = async () => {
 
 <style>
 .initial-actions {
-  max-width: 600px;
+  max-width: 700px;
   margin: 0 auto;
 }
 
@@ -124,8 +124,8 @@ const reset = async () => {
 
 .dashboard-grid {
   display: grid;
-  grid-template-columns: 1.5fr 1fr;
-  gap: 2rem;
+  grid-template-columns: 2fr 1fr;
+  gap: 2.5rem;
   align-items: start;
 }
 

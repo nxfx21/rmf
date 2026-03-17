@@ -34,10 +34,15 @@ body {
 
 #app {
   width: 100%;
-  max-width: 900px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: 4rem 2rem;
   text-align: center;
+  transition: max-width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#app.onboarding {
+  max-width: 900px;
 }
 
 h1 {
@@ -211,4 +216,14 @@ button:active {
   color: #444;
   font-size: 0.85rem;
   letter-spacing: 0.5px;
+}
+
+.onboarding-wrapper {
+  max-width: 900px !important;
+  margin: 0 auto;
+}
+
+.onboarding-content {
+  display: flex;
+  justify-content: center;
 }

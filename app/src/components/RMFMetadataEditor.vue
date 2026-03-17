@@ -3,6 +3,10 @@ import { ref, onMounted } from 'vue'
 import { useForm } from 'vee-validate'
 import { toTypedSchema } from '@vee-validate/zod'
 import * as zod from 'zod'
+import { useFileSystem } from '../store'
+import Swal from 'sweetalert2'
+
+const { writeFile, readFile } = useFileSystem()
 
 const props = defineProps<{
   modelValue: any
@@ -78,6 +82,62 @@ const removeLink = (key: string) => {
   setValues({ ...values, links: newLinks })
   updateParent()
 }
+
+// Asset Management (Images)
+const iconPreview = ref<string | null>(null)
+const thumbPreview = ref<string | null>(null)
+
+const loadExistingAssets = async () => {
+  try {
+    const iconData = await readFile('icon.png')
+    iconPreview.value = URL.createObjectURL(new Blob([iconData as any], { type: 'image/png' }))
+  } catch (e) {}
+  try {
+    const thumbData = await readFile('thumbnail.png')
+    thumbPreview.value = URL.createObjectURL(new Blob([thumbData as any], { type: 'image/png' }))
+  } catch (e) {}
+}
+
+onMounted(() => {
+  setValues(props.modelValue)
+  loadExistingAssets()
+})
+
+const validateImage = (file: File, aspectWidth: number, aspectHeight: number): Promise<boolean> => {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.onload = () => {
+      const actualRatio = img.width / img.height
+      const targetRatio = aspectWidth / aspectHeight
+      // Allow minor deviation
+      if (Math.abs(actualRatio - targetRatio) > 0.05) {
+        Swal.fire('Asset Error', `Image must be ${aspectWidth}:${aspectHeight} aspect ratio. Found ${actualRatio.toFixed(2)}`, 'error')
+        resolve(false)
+      } else {
+        resolve(true)
+      }
+    }
+    img.src = URL.createObjectURL(file)
+  })
+}
+
+const handleAssetUpload = async (e: Event, type: 'icon' | 'thumb') => {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+
+  const isValid = type === 'icon' 
+    ? await validateImage(file, 1, 1)
+    : await validateImage(file, 3, 2)
+
+  if (isValid) {
+    const fileName = type === 'icon' ? 'icon.png' : 'thumbnail.png'
+    await writeFile(fileName, file)
+    const previewUrl = URL.createObjectURL(file)
+    if (type === 'icon') iconPreview.value = previewUrl
+    else thumbPreview.value = previewUrl
+    Swal.fire('Success', `${type.toUpperCase()} uploaded and saved to project.`, 'success')
+  }
+}
 </script>
 
 <template>
@@ -129,6 +189,26 @@ const removeLink = (key: string) => {
           <span v-for="tag in values.tags" :key="tag" class="chip clickable" @click="removeTag(tag)">
             {{ tag }} <span class="close">×</span>
           </span>
+        </div>
+      </div>
+
+      <div class="form-group full-width assets-row">
+        <div class="asset-upload-container">
+          <label>Mod Icon (1:1)</label>
+          <div class="asset-preview icon-preview" :style="{ backgroundImage: iconPreview ? `url(${iconPreview})` : '' }">
+            <span v-if="!iconPreview">No Icon</span>
+            <input type="file" accept="image/png,image/jpeg" @change="handleAssetUpload($event, 'icon')" />
+          </div>
+          <p class="asset-hint">PNG, 1:1 ratio (e.g. 512x512)</p>
+        </div>
+
+        <div class="asset-upload-container">
+          <label>Mod Thumbnail (3:2)</label>
+          <div class="asset-preview thumb-preview" :style="{ backgroundImage: thumbPreview ? `url(${thumbPreview})` : '' }">
+            <span v-if="!thumbPreview">No Thumbnail</span>
+            <input type="file" accept="image/png,image/jpeg" @change="handleAssetUpload($event, 'thumb')" />
+          </div>
+          <p class="asset-hint">PNG, 3:2 ratio (e.g. 1200x800)</p>
         </div>
       </div>
 
@@ -274,5 +354,65 @@ input:focus, textarea:focus {
   font-size: 1.2rem;
   cursor: pointer;
   padding: 0 0.5rem;
+}
+
+.assets-row {
+  display: flex !important;
+  gap: 2rem;
+  border-top: 1px solid var(--glass-border);
+  padding-top: 2rem;
+  margin-top: 1rem;
+}
+
+.asset-upload-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.asset-preview {
+  position: relative;
+  border: 2px dashed var(--glass-border);
+  border-radius: 12px;
+  background-size: cover;
+  background-position: center;
+  background-color: rgba(255,255,255,0.02);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #555;
+  font-size: 0.8rem;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.asset-preview:hover {
+  border-color: var(--accent);
+  background-color: var(--accent-muted);
+}
+
+.asset-preview input {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.icon-preview {
+  width: 100px;
+  height: 100px;
+}
+
+.thumb-preview {
+  width: 100%;
+  height: 100px;
+}
+
+.asset-hint {
+  font-size: 0.7rem;
+  color: #666;
+  font-style: italic;
 }
 </style>
