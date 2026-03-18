@@ -31,7 +31,7 @@ my_mod.rmf (zip)
 ### RMF Web App
 Located in the `app/` directory. This tool allows you to:
 1. **Validate**: Drag and drop your mod folder to check for RMF compliance.
-2. **Package**: Automatically bundle your files into an `.rmf` (ZIP) package.
+2. **Package**: Automatically bundle your files into the `.rmd`/`.rmf`/`.zip` (ZIP) package.
 
 To run the web app locally:
 ```bash
