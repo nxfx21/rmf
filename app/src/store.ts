@@ -48,7 +48,7 @@ export const useFileSystem = () => {
       let current = ''
       for (let i = 0; i < parts.length - 1; i++) {
         current += (current ? '/' : '') + parts[i]
-        try { await pfs.mkdir(current) } catch (e) {}
+        try { await pfs.mkdir('/' + current) } catch (e) {}
       }
     }
     

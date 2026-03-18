@@ -22,17 +22,56 @@ onMounted(async () => {
   await initializeStore()
 })
 
+const findCommonPrefix = (files: File[]) => {
+  const paths = files.map(f => (f as any).webkitRelativePath || f.name).filter(p => p.includes('/'))
+  if (paths.length === 0) return ''
+  
+  const parts = paths[0].split('/')
+  let commonParts = parts.slice(0, -1)
+  
+  for (let i = 1; i < paths.length; i++) {
+    const currentParts = paths[i].split('/')
+    for (let j = 0; j < commonParts.length; j++) {
+      if (commonParts[j] !== currentParts[j]) {
+        commonParts = commonParts.slice(0, j)
+        break
+      }
+    }
+  }
+  
+  return commonParts.length > 0 ? commonParts.join('/') + '/' : ''
+}
+
 const handleFilesImported = async (importedFiles: File[]) => {
-  if (importedFiles.length === 1 && (importedFiles[0].name.endsWith('.zip') || importedFiles[0].name.endsWith('.rmf'))) {
+  await resetFs()
+  let rootPath = ''
+  let manifestFound = false
+  
+  // Strategy: Try to find manifest.json first to define the root
+
+  if (importedFiles.length === 1 && (importedFiles[0].name.endsWith('.zip') || importedFiles[0].name.endsWith('.rmf') || importedFiles[0].name.endsWith('.rmd'))) {
     const zip = await JSZip.loadAsync(importedFiles[0])
-    await resetFs()
-    for (const [path, file] of Object.entries(zip.files)) {
+    const zipPaths = Object.keys(zip.files).filter(p => !zip.files[p].dir)
+    
+    // Scan for manifest.json in ZIP
+    const manifestPath = zipPaths.find(p => p.endsWith('manifest.json'))
+    if (manifestPath) {
+      rootPath = manifestPath.substring(0, manifestPath.lastIndexOf('manifest.json'))
+    } else {
+      rootPath = findCommonPrefix(importedFiles) // Fallback for legacy
+    }
+
+    for (const [rawPath, file] of Object.entries(zip.files)) {
       if (file.dir) continue
+      let path = rawPath
+      if (rootPath && path.startsWith(rootPath)) path = path.slice(rootPath.length)
+      
       const content = await file.async('uint8array')
       if (path === 'manifest.json') {
         try {
           const text = new TextDecoder().decode(content)
           projectStore.manifest = { ...projectStore.manifest, ...JSON.parse(text) }
+          manifestFound = true
         } catch (e) {
           console.error("Manifest parse failed", e)
         }
@@ -41,24 +80,24 @@ const handleFilesImported = async (importedFiles: File[]) => {
       }
     }
   } else {
+    // Scan for manifest.json in Folder upload
     const manifestFile = importedFiles.find(f => f.name === 'manifest.json' || (f as any).webkitRelativePath?.endsWith('manifest.json'))
-    let rootPath = ''
     if (manifestFile) {
       const relPath = (manifestFile as any).webkitRelativePath || manifestFile.name
-      if (relPath.includes('/')) {
-        rootPath = relPath.substring(0, relPath.lastIndexOf('/') + 1)
-      }
+      rootPath = relPath.substring(0, relPath.lastIndexOf('manifest.json'))
+    } else {
+      rootPath = findCommonPrefix(importedFiles) // Fallback for legacy
     }
-    await resetFs()
+
     for (const file of importedFiles) {
       let path = (file as any).webkitRelativePath || file.name
-      if (rootPath && path.startsWith(rootPath)) {
-        path = path.slice(rootPath.length)
-      }
+      if (rootPath && path.startsWith(rootPath)) path = path.slice(rootPath.length)
+      
       if (path === 'manifest.json') {
         try {
           const text = await file.text()
           projectStore.manifest = { ...projectStore.manifest, ...JSON.parse(text) }
+          manifestFound = true
         } catch (e) {
           console.error("Manifest parse failed", e)
         }
@@ -67,6 +106,14 @@ const handleFilesImported = async (importedFiles: File[]) => {
       }
     }
   }
+
+  // Fallback for legacy mods without manifest
+  if (!manifestFound) {
+    const folderName = rootPath.split('/').filter(Boolean).pop() || (importedFiles.length === 1 ? importedFiles[0].name.split('.')[0] : 'legacy-mod')
+    projectStore.manifest.name = folderName
+    projectStore.manifest.id = `com.legacy.${folderName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'mod'}`
+  }
+
   projectStore.isInitialized = true
 }
 
@@ -190,7 +237,12 @@ const reset = async () => {
   display: grid;
   grid-template-columns: 2fr 1fr;
   gap: 2.5rem;
-  align-items: start;
+  align-items: stretch;
+}
+
+.dashboard-grid .card {
+  margin-bottom: 0;
+  height: 100%;
 }
 
 @media (max-width: 800px) {

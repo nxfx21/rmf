@@ -8,7 +8,47 @@ import Swal from 'sweetalert2'
 const { writeFile, unlink, readDirRecursive, pfs } = useFileSystem()
 const nodes = ref<any[]>([])
 const selectedKey = ref<Record<string, boolean>>({})
+const isDragging = ref(false)
 const emit = defineEmits(['select'])
+
+const handleDrop = async (e: DragEvent) => {
+  isDragging.value = false
+  const items = e.dataTransfer?.items
+  if (!items) return
+  
+  const entries = Array.from(items)
+    .map(item => item.webkitGetAsEntry())
+    .filter(entry => entry !== null)
+
+  const traverseEntry = async (entry: any, relativePath: string = '') => {
+    if (entry.isFile) {
+      const file = await new Promise<File>((resolve) => entry.file(resolve))
+      await writeFile(relativePath + file.name, file)
+    } else if (entry.isDirectory) {
+      const reader = entry.createReader()
+      const subEntries = await new Promise<any[]>((resolve) => reader.readEntries(resolve))
+      for (const subEntry of subEntries) {
+        await traverseEntry(subEntry, relativePath + entry.name + '/')
+      }
+    }
+  }
+
+  for (const entry of entries) {
+    await traverseEntry(entry)
+  }
+  await refreshTree()
+}
+
+const handlePaste = async (e: ClipboardEvent) => {
+  const files = e.clipboardData?.files
+  if (!files) return
+  
+  for (const file of Array.from(files)) {
+    const path = (file as any).webkitRelativePath || file.name
+    await writeFile(path, file)
+  }
+  await refreshTree()
+}
 
 watch(selectedKey, (newVal) => {
   const key = Object.keys(newVal)[0]
@@ -133,7 +173,16 @@ defineExpose({ refreshTree })
 </script>
 
 <template>
-  <div class="card fs-explorer animate-fade-in">
+  <div 
+    class="card fs-explorer animate-fade-in"
+    :class="{ dragging: isDragging }"
+    tabindex="0"
+    @dragenter.prevent="isDragging = true"
+    @dragover.prevent="isDragging = true"
+    @dragleave.prevent="isDragging = false"
+    @drop.prevent="handleDrop"
+    @paste="handlePaste"
+  >
     <div class="header">
       <h3>Project Explorer</h3>
       <div class="actions">
@@ -208,7 +257,15 @@ defineExpose({ refreshTree })
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 1.5rem;
+  padding: 2rem;
+  box-sizing: border-box;
+  transition: all 0.3s ease;
+}
+
+.fs-explorer.dragging {
+  border-color: var(--accent);
+  background: var(--accent-muted);
+  transform: scale(1.01);
 }
 
 .header {
@@ -244,7 +301,6 @@ h3 { margin: 0; font-size: 1rem; font-weight: 600; color: #fff; }
 .tree-container {
   flex-grow: 1;
   min-height: 350px;
-  max-height: 550px;
   overflow-y: auto;
   background: rgba(0,0,0,0.15);
   border-radius: 12px;

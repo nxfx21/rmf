@@ -21,6 +21,12 @@ const handleDrop = (e: DragEvent) => {
   }
 }
 
+const handlePaste = (e: ClipboardEvent) => {
+  if (e.clipboardData?.files) {
+    emit('loaded', Array.from(e.clipboardData.files))
+  }
+}
+
 const triggerFileInput = () => {
   fileInput.value?.click()
 }
@@ -34,16 +40,18 @@ const triggerZipInput = () => {
   <div 
     class="card loader-zone"
     :class="{ dragging: isDragging }"
+    tabindex="0"
     @dragover.prevent="isDragging = true"
     @dragleave.prevent="isDragging = false"
     @drop.prevent="handleDrop"
+    @paste="handlePaste"
   >
     <div class="loader-content">
       <div class="icon-large">
         <Box :size="64" stroke-width="1.5" />
       </div>
       <h2>Get Started with RMF</h2>
-      <p>Import an existing mod folder, a .zip/.rmf archive, or start a new project.</p>
+      <p>Import an existing mod folder, a .zip/.rmd archive, or start a new project.</p>
       
       <div class="actions">
         <div class="split-button">
@@ -73,7 +81,7 @@ const triggerZipInput = () => {
         <input 
           type="file" 
           ref="zipInput"
-          accept=".zip,.rmf"
+          accept=".zip,.rmd,.rmf"
           style="display: none" 
           @change="handleFileChange"
         />

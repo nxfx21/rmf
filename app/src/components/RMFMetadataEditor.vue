@@ -87,6 +87,22 @@ const removeLink = (key: string) => {
 // Asset Management (Images)
 const iconPreview = ref<string | null>(null)
 const thumbPreview = ref<string | null>(null)
+const isDraggingIcon = ref(false)
+const isDraggingThumb = ref(false)
+
+// Cropping State
+const cropper = ref({
+  active: false,
+  type: 'icon' as 'icon' | 'thumb',
+  img: null as HTMLImageElement | null,
+  scale: 1,
+  offsetX: 0,
+  offsetY: 0,
+  startX: 0,
+  startY: 0,
+  isDragging: false
+})
+const cropperCanvas = ref<HTMLCanvasElement | null>(null)
 
 const loadExistingAssets = async () => {
   try {
@@ -104,40 +120,186 @@ onMounted(() => {
   loadExistingAssets()
 })
 
-const validateImage = (file: File, aspectWidth: number, aspectHeight: number): Promise<boolean> => {
-  return new Promise((resolve) => {
-    const img = new Image()
-    img.onload = () => {
-      const actualRatio = img.width / img.height
-      const targetRatio = aspectWidth / aspectHeight
-      // Allow minor deviation
-      if (Math.abs(actualRatio - targetRatio) > 0.05) {
-        Swal.fire('Asset Error', `Image must be ${aspectWidth}:${aspectHeight} aspect ratio. Found ${actualRatio.toFixed(2)}`, 'error')
-        resolve(false)
-      } else {
-        resolve(true)
+const processFile = async (file: File, type: 'icon' | 'thumb') => {
+  const img = new Image()
+  img.onload = async () => {
+    const targetRatio = type === 'icon' ? 1 : 1.5 // 3:2 = 1.5
+    const actualRatio = img.width / img.height
+    
+    if (Math.abs(actualRatio - targetRatio) > 0.05) {
+      // Open Cropper
+      cropper.value = {
+        active: true,
+        type,
+        img,
+        scale: Math.max(targetRatio / actualRatio, 1),
+        offsetX: 0,
+        offsetY: 0,
+        startX: 0,
+        startY: 0,
+        isDragging: false
       }
+      nextTick(drawCropPreview)
+    } else {
+      // Save directly
+      await saveAsset(file, type)
     }
-    img.src = URL.createObjectURL(file)
+  }
+  img.src = URL.createObjectURL(file)
+}
+
+const saveAsset = async (data: Blob, type: 'icon' | 'thumb') => {
+  const fileName = type === 'icon' ? 'icon.png' : 'thumbnail.png'
+  await writeFile(fileName, data)
+  const previewUrl = URL.createObjectURL(data)
+  if (type === 'icon') iconPreview.value = previewUrl
+  else thumbPreview.value = previewUrl
+  Swal.fire({
+    icon: 'success',
+    title: 'Asset Saved',
+    background: '#1a1a1a',
+    color: '#fff',
+    toast: true,
+    position: 'top-end',
+    showConfirmButton: false,
+    timer: 2000
   })
 }
 
-const handleAssetUpload = async (e: Event, type: 'icon' | 'thumb') => {
+const handleAssetUpload = (e: Event, type: 'icon' | 'thumb') => {
   const file = (e.target as HTMLInputElement).files?.[0]
-  if (!file) return
+  if (file) processFile(file, type)
+}
 
-  const isValid = type === 'icon' 
-    ? await validateImage(file, 1, 1)
-    : await validateImage(file, 3, 2)
-
-  if (isValid) {
-    const fileName = type === 'icon' ? 'icon.png' : 'thumbnail.png'
-    await writeFile(fileName, file)
-    const previewUrl = URL.createObjectURL(file)
-    if (type === 'icon') iconPreview.value = previewUrl
-    else thumbPreview.value = previewUrl
-    Swal.fire('Success', `${type.toUpperCase()} uploaded and saved to project.`, 'success')
+const handleDrop = async (e: DragEvent, type: 'icon' | 'thumb') => {
+  if (type === 'icon') isDraggingIcon.value = false
+  else isDraggingThumb.value = false
+  
+  // 1. Check for files (standard drop)
+  const file = e.dataTransfer?.files[0]
+  if (file && file.type.startsWith('image/')) {
+    processFile(file, type)
+    return
   }
+
+  // 2. Check for URL (dragging from another tab)
+  const url = e.dataTransfer?.getData('text/uri-list')
+  if (url) {
+    try {
+      const response = await fetch(url)
+      const blob = await response.blob()
+      if (blob.type.startsWith('image/')) {
+        const file = new File([blob], 'dropped_image.png', { type: blob.type })
+        processFile(file, type)
+      }
+    } catch (err) {
+      console.error('Failed to fetch dropped image URL:', err)
+      Swal.fire({
+        icon: 'warning',
+        title: 'Source Protected (CORS)',
+        text: 'This website protects its images from being directly fetched. \n\nWorkaround: Right-click the image, select "Copy Image", then click this box and press Ctrl+V (or Cmd+V) to paste!',
+        background: '#1a1a1a',
+        color: '#fff',
+        confirmButtonColor: '#00A2FF'
+      })
+    }
+  }
+}
+
+const handlePaste = (e: ClipboardEvent, type: 'icon' | 'thumb') => {
+  const items = e.clipboardData?.items
+  if (!items) return
+  
+  for (const item of Array.from(items)) {
+    if (item.type.startsWith('image/')) {
+      const file = item.getAsFile()
+      if (file) processFile(file, type)
+      break
+    }
+  }
+}
+
+// Cropper Logic
+import { nextTick } from 'vue'
+
+const drawCropPreview = () => {
+  const canvas = cropperCanvas.value
+  if (!canvas || !cropper.value.img) return
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+
+  const { img, scale, offsetX, offsetY } = cropper.value
+  const targetW = canvas.width
+  const targetH = canvas.height
+  
+  ctx.clearRect(0, 0, targetW, targetH)
+  ctx.save()
+  
+  // Draw image adjusted by scale and offset
+  const drawW = img.width * scale
+  const drawH = img.height * scale
+  
+  // Center initial
+  const centerX = (targetW - drawW) / 2 + offsetX
+  const centerY = (targetH - drawH) / 2 + offsetY
+  
+  ctx.drawImage(img, centerX, centerY, drawW, drawH)
+  
+  // Draw UI border
+  ctx.strokeStyle = '#00A2FF'
+  ctx.lineWidth = 2
+  ctx.strokeRect(0, 0, targetW, targetH)
+  
+  ctx.restore()
+}
+
+const startCropDrag = (e: MouseEvent) => {
+  cropper.value.isDragging = true
+  cropper.value.startX = e.clientX - cropper.value.offsetX
+  cropper.value.startY = e.clientY - cropper.value.offsetY
+}
+
+const onCropDrag = (e: MouseEvent) => {
+  if (!cropper.value.isDragging) return
+  cropper.value.offsetX = e.clientX - cropper.value.startX
+  cropper.value.offsetY = e.clientY - cropper.value.startY
+  drawCropPreview()
+}
+
+const finishCropDrag = () => {
+  cropper.value.isDragging = false
+}
+
+const applyCrop = async () => {
+  const canvas = document.createElement('canvas')
+  const type = cropper.value.type
+  const targetW = type === 'icon' ? 512 : 1200
+  const targetH = type === 'icon' ? 512 : 800
+  canvas.width = targetW
+  canvas.height = targetH
+  
+  const ctx = canvas.getContext('2d')
+  if (!ctx || !cropper.value.img) return
+
+  const { img, scale, offsetX, offsetY } = cropper.value
+  
+  // Calculate relative offsets based on target size vs preview canvas size (300px width)
+  const previewW = 300
+  const drawRatio = targetW / previewW
+  
+  const drawW = img.width * scale * drawRatio
+  const drawH = img.height * scale * drawRatio
+  const centerX = (targetW - drawW) / 2 + (offsetX * drawRatio)
+  const centerY = (targetH - drawH) / 2 + (offsetY * drawRatio)
+  
+  ctx.drawImage(img, centerX, centerY, drawW, drawH)
+  
+  canvas.toBlob((blob) => {
+    if (blob) {
+      saveAsset(blob, type)
+      cropper.value.active = false
+    }
+  }, 'image/png')
 }
 </script>
 
@@ -198,18 +360,44 @@ const handleAssetUpload = async (e: Event, type: 'icon' | 'thumb') => {
       <div class="form-group full-width assets-row">
         <div class="asset-upload-container">
           <label>Mod Icon (1:1)</label>
-          <div class="asset-preview icon-preview" :style="{ backgroundImage: iconPreview ? `url(${iconPreview})` : '' }">
+          <div 
+            class="asset-preview icon-preview" 
+            :class="{ dragging: isDraggingIcon }"
+            :style="{ backgroundImage: iconPreview ? `url(${iconPreview})` : '' }"
+          >
             <span v-if="!iconPreview" class="empty-asset"><ImageIcon :size="24" /> No Icon</span>
-            <input type="file" accept="image/png,image/jpeg" @change="handleAssetUpload($event, 'icon')" />
+            <input 
+              type="file" 
+              accept="image/png,image/jpeg" 
+              @change="handleAssetUpload($event, 'icon')"
+              @dragenter.prevent="isDraggingIcon = true"
+              @dragover.prevent="isDraggingIcon = true"
+              @dragleave.prevent="isDraggingIcon = false"
+              @drop.prevent="handleDrop($event, 'icon')"
+              @paste="handlePaste($event, 'icon')"
+             />
           </div>
           <p class="asset-hint">PNG, 1:1 ratio (e.g. 512x512)</p>
         </div>
 
         <div class="asset-upload-container">
           <label>Mod Thumbnail (3:2)</label>
-          <div class="asset-preview thumb-preview" :style="{ backgroundImage: thumbPreview ? `url(${thumbPreview})` : '' }">
+          <div 
+            class="asset-preview thumb-preview" 
+            :class="{ dragging: isDraggingThumb }"
+            :style="{ backgroundImage: thumbPreview ? `url(${thumbPreview})` : '' }"
+          >
             <span v-if="!thumbPreview" class="empty-asset"><ImageIcon :size="24" /> No Thumbnail</span>
-            <input type="file" accept="image/png,image/jpeg" @change="handleAssetUpload($event, 'thumb')" />
+            <input 
+              type="file" 
+              accept="image/png,image/jpeg" 
+              @change="handleAssetUpload($event, 'thumb')"
+              @dragenter.prevent="isDraggingThumb = true"
+              @dragover.prevent="isDraggingThumb = true"
+              @dragleave.prevent="isDraggingThumb = false"
+              @drop.prevent="handleDrop($event, 'thumb')"
+              @paste="handlePaste($event, 'thumb')"
+             />
           </div>
           <p class="asset-hint">PNG, 3:2 ratio (e.g. 1200x800)</p>
         </div>
@@ -231,6 +419,40 @@ const handleAssetUpload = async (e: Event, type: 'icon' | 'thumb') => {
             <button class="icon-btn danger" @click="removeLink(String(key))">
               <Trash2 :size="14" />
             </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cropping Modal Overlay -->
+    <div v-if="cropper.active" class="cropping-overlay">
+      <div class="cropper-card card animate-fade-in">
+        <div class="cropper-header">
+          <h3>Adjust Asset Crop</h3>
+          <button class="icon-btn" @click="cropper.active = false"><X :size="20" /></button>
+        </div>
+        <p class="cropper-sub">Drag the image to center the important area within the blue box.</p>
+        
+        <div class="canvas-wrapper">
+          <canvas 
+            ref="cropperCanvas" 
+            :width="cropper.type === 'icon' ? 300 : 300"
+            :height="cropper.type === 'icon' ? 300 : 200"
+            @mousedown="startCropDrag"
+            @mousemove="onCropDrag"
+            @mouseup="finishCropDrag"
+            @mouseleave="finishCropDrag"
+          ></canvas>
+        </div>
+
+        <div class="cropper-controls">
+          <div class="zoom-row">
+            <label>Zoom</label>
+            <input type="range" v-model.number="cropper.scale" min="0.1" max="3" step="0.01" @input="drawCropPreview" />
+          </div>
+          <div class="actions">
+            <button class="secondary" @click="cropper.active = false">Cancel</button>
+            <button class="primary" @click="applyCrop">Save & Apply</button>
           </div>
         </div>
       </div>
@@ -417,7 +639,7 @@ input:focus, textarea:focus {
   transition: all 0.2s;
 }
 
-.asset-preview:hover {
+.asset-preview:hover, .asset-preview.dragging {
   border-color: var(--accent);
   background-color: var(--accent-muted);
 }
@@ -443,5 +665,75 @@ input:focus, textarea:focus {
   font-size: 0.7rem;
   color: #666;
   font-style: italic;
+}
+
+/* Cropper Styles */
+.cropping-overlay {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.8);
+  backdrop-filter: blur(8px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.cropper-card {
+  width: 100%;
+  max-width: 500px;
+  background: #111;
+  padding: 2rem;
+  border: 1px solid var(--glass-border);
+}
+
+.cropper-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.cropper-sub {
+  color: #888;
+  font-size: 0.9rem;
+  margin-bottom: 1.5rem;
+}
+
+.canvas-wrapper {
+  background: #000;
+  display: flex;
+  justify-content: center;
+  border-radius: 12px;
+  margin-bottom: 2rem;
+  overflow: hidden;
+  border: 1px solid #333;
+}
+
+.canvas-wrapper canvas {
+  cursor: move;
+}
+
+.cropper-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.zoom-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.zoom-row input {
+  flex: 1;
+}
+
+.cropper-controls .actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
 }
 </style>

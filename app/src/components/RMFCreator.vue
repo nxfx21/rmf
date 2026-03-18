@@ -76,7 +76,7 @@ const createMod = async () => {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `${form.value.id}.rmf`
+    link.download = `${form.value.id}.rmd`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)

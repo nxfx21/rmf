@@ -47,7 +47,7 @@ const packageMod = async () => {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `${manifest.id}.rmf`
+    link.download = `${manifest.id}.rmd`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -56,7 +56,7 @@ const packageMod = async () => {
     Swal.fire({
       icon: 'success',
       title: 'Packaged!',
-      text: `${manifest.id}.rmf downloaded successfully.`,
+      text: `${manifest.id}.rmd downloaded successfully.`,
       background: '#1a1a1a',
       color: '#fff',
       confirmButtonColor: '#00A2FF'
