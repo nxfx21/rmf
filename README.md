@@ -17,7 +17,7 @@ The full specification can be found in [specification.md](./specification.md).
 
 ## Example Structure
 ```text
-my_mod.rmf (zip)
+my_mod.rmd (zip)
 ├── manifest.json
 ├── README.md
 ├── icon.png
@@ -31,7 +31,7 @@ my_mod.rmf (zip)
 ### RMF Web App
 Located in the `app/` directory. This tool allows you to:
 1. **Validate**: Drag and drop your mod folder to check for RMF compliance.
-2. **Package**: Automatically bundle your files into an `.rmf` (ZIP) package.
+2. **Package**: Automatically bundle your files into an `.rmd` (ZIP) package.
 
 To run the web app locally:
 ```bash

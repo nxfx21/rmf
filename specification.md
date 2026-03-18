@@ -8,7 +8,7 @@ RobloxModFormat (RMF) is a cross-platform, easily parsable package format for Ro
 
 ## The Container
 All RMF projects are distributed as standard **ZIP** archives (with high compression).
-- **File Extension**: `.rmf` (preferred) or `.zip`.
+- **File Extension**: `.rmd` (Roblox Mod Data - preferred), `.rmf`, or `.zip`.
 
 ## Directory Structure
 An RMF package must follow this structure:
